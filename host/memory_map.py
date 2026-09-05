@@ -1,0 +1,26 @@
+FLASH_BASE = 0x08000000
+FLASH_SIZE = 64 * 1024
+FLASH_END = FLASH_BASE + FLASH_SIZE
+
+PAGE_SIZE = 1024
+BOOTLOADER_BASE = 0x08000000
+BOOTLOADER_SIZE = 16 * 1024
+BOOTLOADER_END = BOOTLOADER_BASE + BOOTLOADER_SIZE
+
+APP_HEADER_BASE = 0x08004000
+APP_HEADER_SIZE = 1024 
+APP_HEADER_END = APP_HEADER_BASE + APP_HEADER_SIZE
+
+APP_BASE = 0x08004400
+APP_SIZE = 47 * 1024 
+APP_END = APP_BASE + APP_SIZE
+
+def is_in_app_region(addr: int) -> bool:
+    return APP_BASE <= addr < APP_END
+
+def page_of(addr: int) -> int:
+    if addr < FLASH_BASE or addr >= FLASH_END:
+        raise ValueError(f"Address {addr} is outside flash")
+    return (addr - FLASH_BASE) // PAGE_SIZE
+
+
