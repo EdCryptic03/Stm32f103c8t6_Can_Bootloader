@@ -26,3 +26,5 @@ EWARM/settings/
 *.swp
 Thumbs.db
 .DS_Store
+.venv/
+__pycache__/
