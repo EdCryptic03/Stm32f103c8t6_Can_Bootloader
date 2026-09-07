@@ -45,7 +45,7 @@ void flash_lock(void){
 // Function for erasing page using reference manual procedure
 flash_status_t flash_erase_page(uint32_t page_addr){
 
-	if(page_addr <= WRITABLE_START || page_addr >= FLASH_END_ADDR){
+	if(page_addr < WRITABLE_START || page_addr >= FLASH_END_ADDR){
 		return FLASH_ERR_RANGE;
 	}
 
@@ -69,7 +69,7 @@ flash_status_t flash_erase_page(uint32_t page_addr){
 */
 flash_status_t flash_halfword_program(uint32_t addr, uint16_t data){
 
-	if(addr <= WRITABLE_START || addr >= FLASH_END_ADDR){
+	if(addr < WRITABLE_START || addr >= FLASH_END_ADDR){
 		return FLASH_ERR_RANGE;
 	}
 
