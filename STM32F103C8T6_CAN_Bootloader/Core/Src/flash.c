@@ -10,8 +10,8 @@
 #include "stm32f1xx.h"
 
 // Keys for unlocking FPEC (FLash Program/Erase Controller)
-#define FLASH_KEY1 0x45670123U
-#define FLASH_KEY2 0xCDEF89ABU
+//#define FLASH_KEY1 0x45670123U
+//#define FLASH_KEY2 0xCDEF89ABU
 
 #define WRITABLE_START 0x08004000U
 #define FLASH_END_ADDR 0x08010000U
@@ -64,7 +64,9 @@ flash_status_t flash_erase_page(uint32_t page_addr){
 	return FLASH_OK;
 }
 
-// Function for writing the 16 bit or half word data into the flash
+/* Function for writing the 16 bit or half word data into the flash
+ * using reference manual procedure
+*/
 flash_status_t flash_halfword_program(uint32_t addr, uint16_t data){
 
 	if(addr <= WRITABLE_START || addr >= FLASH_END_ADDR){
