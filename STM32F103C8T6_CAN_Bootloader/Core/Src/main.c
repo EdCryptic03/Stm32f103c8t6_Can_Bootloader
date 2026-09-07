@@ -38,7 +38,7 @@ static void flash_test(void){
 	flash_unlock();
 	g_erase_status = flash_erase_page(TEST_ADDR);
 	g_after_erase = *(volatile uint16_t *)TEST_ADDR;
-	g_prog_status = flash_haflword_program(TEST_ADDR, 0xABCD);
+	g_prog_status = flash_halfword_program(TEST_ADDR, 0xABCD);
 	g_after_prog = *(volatile uint16_t *)TEST_ADDR;
 	flash_lock();
 
@@ -51,7 +51,7 @@ static void flash_test(void){
 
 int main(void){
 
-	flash_test();
-//	jump_to_application();
+//	flash_test();
+	jump_to_application();
 	while(1) { }
 }
