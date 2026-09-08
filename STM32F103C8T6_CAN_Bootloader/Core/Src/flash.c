@@ -16,6 +16,8 @@
 #define WRITABLE_START 0x08004000U
 #define FLASH_END_ADDR 0x08010000U
 
+#define FLASH_PAGE_SIZE 1024U
+
 static void flash_wait_busy(void){
 
 	while(FLASH->SR & FLASH_SR_BSY) {}
@@ -85,5 +87,36 @@ flash_status_t flash_halfword_program(uint32_t addr, uint16_t data){
 	}
 	return FLASH_OK;
 }
+
+
+flash_status_t flash_erase_region(uint32_t start_addr, uint32_t end_addr){
+
+	for(uint32_t addr = start_addr; addr < end_addr; addr += FLASH_PAGE_SIZE){
+		flash_status_t status = flash_erase_page(addr);
+			if(status != FLASH_OK){
+				return status;
+			}
+	}
+
+	return FLASH_OK;
+}
+
+flash_status_t flash_program(uint32_t len, const uint8_t *data, uint32_t addr){
+
+	for(uint32_t i = 0; i < len; i+=2){
+		uint16_t hw;
+		if(i + 1 < len){
+			hw = data[i] | (data[i+1] << 8);
+		} else {
+			hw = data[i] | (0xFF << 8);
+		}
+		flash_status_t status = flash_halfword_program(hw, addr+i);
+		if(status != FLASH_OK){
+			return status;
+		}
+	}
+	return FLASH_OK;
+}
+
 
 
