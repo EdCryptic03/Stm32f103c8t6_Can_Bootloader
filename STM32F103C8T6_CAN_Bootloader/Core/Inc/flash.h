@@ -23,7 +23,7 @@ void flash_lock(void);
 flash_status_t flash_erase_page(uint32_t page_addr);
 flash_status_t flash_halfword_program(uint32_t addr, uint16_t data);
 flash_status_t flash_erase_region(uint32_t start_addr, uint32_t end_addr);
-flash_status_t flash_program(uint32_t len, const uint8_t *data, uint32_t addr);
+flash_status_t flash_program(uint32_t addr, const uint8_t *data, uint32_t len);
 
 
 

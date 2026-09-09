@@ -88,7 +88,7 @@ flash_status_t flash_halfword_program(uint32_t addr, uint16_t data){
 	return FLASH_OK;
 }
 
-
+/*Function to erase the page region */
 flash_status_t flash_erase_region(uint32_t start_addr, uint32_t end_addr){
 
 	for(uint32_t addr = start_addr; addr < end_addr; addr += FLASH_PAGE_SIZE){
@@ -101,7 +101,8 @@ flash_status_t flash_erase_region(uint32_t start_addr, uint32_t end_addr){
 	return FLASH_OK;
 }
 
-flash_status_t flash_program(uint32_t len, const uint8_t *data, uint32_t addr){
+/*buffer function to program a buffer into the flash memory in 16-bit halfwords */
+flash_status_t flash_program(uint32_t addr, const uint8_t *data, uint32_t len){
 
 	for(uint32_t i = 0; i < len; i+=2){
 		uint16_t hw;
@@ -110,7 +111,7 @@ flash_status_t flash_program(uint32_t len, const uint8_t *data, uint32_t addr){
 		} else {
 			hw = data[i] | (0xFF << 8);
 		}
-		flash_status_t status = flash_halfword_program(hw, addr+i);
+		flash_status_t status = flash_halfword_program(addr+i, hw);
 		if(status != FLASH_OK){
 			return status;
 		}
