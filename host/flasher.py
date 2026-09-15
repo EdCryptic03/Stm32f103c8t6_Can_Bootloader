@@ -49,7 +49,7 @@ def send_and_wait(bus, arb_id, payload, timeout=ACK_TIMEOUT):
 def flash_firmware(bus, image):
 
     if len(image) % 8 != 0:
-        image += b"\xFF" * (8 - len(image) % 0)
+        image += b"\xFF" * (8 - len(image) % 8)
     length = len(image)
     print(f"Image: {length} bytes ({length // 8} frames)")
 
