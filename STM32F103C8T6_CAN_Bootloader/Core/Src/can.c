@@ -40,12 +40,12 @@ void can_init(void){
 	 * 2. Setting BS1 to 13
 	 * 3. Setting BS2 to 2
 	 * 4. Setting SJW to 1
-	 * 5. Enabling Loopback Mode */
+	 * */
 	CAN1->BTR = (3U << CAN_BTR_BRP_Pos)
 				| (12U << CAN_BTR_TS1_Pos)
 				| (1U << CAN_BTR_TS2_Pos)
-				| (0U << CAN_BTR_SJW_Pos)
-				| CAN_BTR_LBKM;
+				| (0U << CAN_BTR_SJW_Pos);
+
 
 
 	/* Filter settings to receive everything in FIFO 0:
