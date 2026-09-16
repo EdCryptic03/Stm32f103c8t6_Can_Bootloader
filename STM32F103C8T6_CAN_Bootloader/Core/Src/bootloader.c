@@ -19,6 +19,9 @@ volatile uint32_t g_bytes_recv;
 
 typedef void (*app_entry_t)(void);
 
+/*=====================================================
+ * FUNCTION TO SEND ONE-BYTE ACK/NACK BACK TO THE HOST
+ * ====================================================*/
 static void bl_respond(uint8_t status){
 
 	can_frame_t r;
@@ -28,11 +31,16 @@ static void bl_respond(uint8_t status){
 	can_send(&r);
 }
 
+/* ============================================================
+ * FUNCTION TO REBUILD 32 BIT NUMBER FROM 4 BYTES (IMAGE LENGTH)
+ * =============================================================
+ */
 static uint32_t rd_u32(const uint8_t *p){
 
 	return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
 			((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
+
 
 static void jump_to_application(void){
 	uint32_t app_stack = *(volatile uint32_t *)(APP_BASE);
@@ -47,10 +55,15 @@ static void jump_to_application(void){
 		app_entry();
 	}
 
+/*=================================================================
+ * g_image_len = total image size
+ * g_write_addr = start of the app
+ * g_bytes_recv = set to zero because we didn't write anything yet
+ * ================================================================ */
 
 void bl_handle_frame(const can_frame_t *f){
 	if(f->id == BL_ID_CMD){
-		switch(f->data[0]){
+		switch(f->data[0]){  // Byte 0 :opcode
 
 		case BL_CMD_CONNECT:
 			g_image_len = rd_u32(&f->data[1]);
@@ -82,7 +95,7 @@ void bl_handle_frame(const can_frame_t *f){
 			jump_to_application();
 			break;
 
-		default:
+		default: // in case of unknown command
 			bl_respond(BL_NACK);
 			break;
 		}
@@ -93,7 +106,7 @@ void bl_handle_frame(const can_frame_t *f){
 		flash_lock();
 		if(st == FLASH_OK){
 			g_write_addr += f->len;
-			g_bytes_recv += f->len;
+			g_bytes_recv += f->len; // counting what we stored
 			bl_respond(BL_ACK);
 		} else {
 			bl_respond(BL_NACK);
