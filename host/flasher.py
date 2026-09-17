@@ -7,7 +7,7 @@ import struct
 import can 
 
 INTERFACE = "slcan"
-CHANNEL = "/dev/tty.usbmodem1101"
+CHANNEL = "COM4"
 BITRATE = 125000
 
 
@@ -29,7 +29,7 @@ ERASE_TIMEOUT = 5.0
 def wait_for_ack(bus, timeout):
     deadline = time.time() + timeout
     while time.time() < deadline:
-        msg = bus.recv(timout=deadline - time.time())
+        msg = bus.recv(timeout=deadline - time.time())
         if msg is None:
             break
         if msg.arbitration_id == BL_ID_RESP:
