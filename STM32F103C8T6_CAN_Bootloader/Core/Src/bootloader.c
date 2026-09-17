@@ -61,6 +61,27 @@ static void jump_to_application(void){
  * g_bytes_recv = set to zero because we didn't write anything yet
  * ================================================================ */
 
+
+/*=====================================================
+ * Standard CRC-32 , Currently matching with Python's zlib.crc32.
+ * ===================================================== */
+static uint32_t crc32_compute(const uint8_t *data, uint32_t len){
+
+	uint32_t crc = 0xFFFFFFFFU;
+	for(uint32_t i = 0;i < len; i++){
+		crc ^= data[i];
+		for(int b = 0;b < 8;b++){
+			if(crc & 1U){
+				crc = (crc >> 1) ^ 0xED88320;
+			} else {
+				crc >>=1;
+			}
+		}
+	}
+	return crc ^= 0xFFFFFFFFU;
+}
+
+
 void bl_handle_frame(const can_frame_t *f){
 	if(f->id == BL_ID_CMD){
 		switch(f->data[0]){  // Byte 0 :opcode
@@ -83,7 +104,10 @@ void bl_handle_frame(const can_frame_t *f){
 			break;
 
 		case BL_CMD_END:
-			if(g_bytes_recv == g_image_len){
+			uint32_t host_crc = rd_u32(&f->data[1]);
+			uint32_t calc_crc = crc32_compute((const uint8_t *)APP_BASE, g_image_len);
+
+			if(g_bytes_recv == g_image_len && calc_crc == host_crc){
 				bl_respond(BL_ACK);
 			} else {
 				bl_respond(BL_NACK);
