@@ -17,6 +17,8 @@ volatile uint32_t g_write_addr;
 volatile uint32_t g_image_len;
 volatile uint32_t g_bytes_recv;
 
+
+
 typedef void (*app_entry_t)(void);
 
 /*=====================================================
@@ -72,13 +74,13 @@ static uint32_t crc32_compute(const uint8_t *data, uint32_t len){
 		crc ^= data[i];
 		for(int b = 0;b < 8;b++){
 			if(crc & 1U){
-				crc = (crc >> 1) ^ 0xED88320;
+				crc = (crc >> 1) ^ 0xEDB88320U;
 			} else {
 				crc >>=1;
 			}
 		}
 	}
-	return crc ^= 0xFFFFFFFFU;
+	return crc ^ 0xFFFFFFFFU;
 }
 
 
@@ -106,8 +108,7 @@ void bl_handle_frame(const can_frame_t *f){
 		case BL_CMD_END:
 			uint32_t host_crc = rd_u32(&f->data[1]);
 			uint32_t calc_crc = crc32_compute((const uint8_t *)APP_BASE, g_image_len);
-
-			if(g_bytes_recv == g_image_len && calc_crc == host_crc){
+			if(g_bytes_recv == g_image_len && host_crc == calc_crc){
 				bl_respond(BL_ACK);
 			} else {
 				bl_respond(BL_NACK);

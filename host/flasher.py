@@ -5,6 +5,7 @@ import sys
 import time 
 import struct 
 import can 
+import zlib
 
 INTERFACE = "slcan"
 CHANNEL = "COM4"
@@ -75,9 +76,10 @@ def flash_firmware(bus, image):
     print("done")
 
     print("END...", end=" ", flush=True)
-    if not send_and_wait(bus, BL_ID_CMD, [BL_CMD_END]):
-        return fail("END rejected")
-    print("ACK")
+    crc = zlib.crc32(image) & 0xFFFFFFFF
+    if not send_and_wait(bus, BL_ID_CMD, [BL_CMD_END] + list(struct.pack("<I", crc))):
+        return fail("END rejected : CRC mismatch or incomplete image")
+    print(f"ACK (crc=0x{crc:08X})")
 
 
     print("GO....", end=" ", flush=True)

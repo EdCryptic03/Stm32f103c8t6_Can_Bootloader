@@ -16,7 +16,6 @@
 #define WRITABLE_START 0x08004000U
 #define FLASH_END_ADDR 0x08010000U
 
-#define FLASH_PAGE_SIZE 1024U
 
 static void flash_wait_busy(void){
 
