@@ -10,6 +10,9 @@
 #include "flash.h"
 #include "stm32f1xx.h"
 
+#define CORE_CLOCK_HZ 8000000U
+#define BOOT_WINDOW_MS 1500U
+
 #define HEADER_BASE 0x08004000UL
 #define APP_BASE 0x08004400UL
 #define APP_END 0x08010000UL
@@ -19,8 +22,6 @@
 volatile uint32_t g_write_addr;
 volatile uint32_t g_image_len;
 volatile uint32_t g_bytes_recv;
-
-#define BOOT_WINDOW 2000000U
 
 #define APP_DESC ((const volatile app_desc_t *)HEADER_BASE)
 
@@ -32,6 +33,37 @@ typedef struct{
 	uint32_t crc;
 } app_desc_t;
 
+typedef enum {
+	ST_IDLE, ST_CONNECTED, ST_ERASED
+} bl_state_t;
+
+static bl_state_t g_state = ST_IDLE;
+
+
+/*=====================================================================================
+ * We need a proper boot window with SysTick as the busy-count window is fragile
+ * SysTick is a 24-bit down-counter tool built into the Cortex-M core.
+ * We're going to set it to tick every 1ms and count real milliseconds, so "1.5s" is
+ * exactly 1.5s regardless of compiler or optimization.
+ * ==================================================================================*/
+static void systick_start_1ms(void){
+
+	SysTick->LOAD = (CORE_CLOCK_HZ / 1000U) - 1U;
+	SysTick->VAL = 0U;
+	SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
+}
+
+static int boot_window(uint32_t ms, can_frame_t *rx){
+	systick_start_1ms();
+	uint32_t elapsed = 0;
+	while (elapsed < ms){
+		if(can_receive(rx) == 0)
+			return 1;
+		if (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk)
+			elapsed++;
+	}
+	return 0;
+}
 
 /*=====================================================
  * FUNCTION TO SEND ONE-BYTE ACK/NACK BACK TO THE HOST
@@ -57,6 +89,7 @@ static uint32_t rd_u32(const uint8_t *p){
 
 
 static void jump_to_application(void){
+	SysTick->CTRL = 0;
 	uint32_t app_stack = *(volatile uint32_t *)(APP_BASE);
 		uint32_t app_reset = *(volatile uint32_t *)(APP_BASE + 4U);
 
@@ -124,20 +157,33 @@ static int app_is_valid(void){
  * g_image_len = total image size
  * g_write_addr = start of the app
  * g_bytes_recv = set to zero because we didn't write anything yet
+ *
+ * Tightened each case in bl_handle_frame
  * ================================================================ */
 
 void bl_handle_frame(const can_frame_t *f){
 	if(f->id == BL_ID_CMD){
 		switch(f->data[0]){  // Byte 0 :opcode
 
-		case BL_CMD_CONNECT:
-			g_image_len = rd_u32(&f->data[1]);
+		case BL_CMD_CONNECT:{
+			uint32_t len = rd_u32(&f->data[1]);
+			if(len == 0 || len > (APP_BASE - APP_END)){
+				bl_respond(BL_NACK);
+				break;
+			}
+			g_image_len = len;
 			g_write_addr = APP_BASE;
 			g_bytes_recv = 0;
+			g_state = ST_CONNECTED;
 			bl_respond(BL_ACK);
 			break;
+		}
 
 		case BL_CMD_ERASE:
+			if(g_state != ST_CONNECTED) {
+				bl_respond(BL_NACK);
+				break; // Must be CONNECTED FIRST
+			}
 			flash_unlock();
 			if(flash_erase_region(HEADER_BASE, APP_END) == FLASH_OK){
 				bl_respond(BL_ACK);
@@ -176,6 +222,26 @@ void bl_handle_frame(const can_frame_t *f){
 		}
 	}
 	else if(f->id == BL_ID_DATA) {
+		/* Adding new conditions before starting the existing BL_ID_DATA branch
+		 * First condition checks if there is any DATA before ERASE
+		 * Second condition checks if the data received plus the new frame is more
+		 * than what the host promised.
+		 * Third condition checks if flash address plus the new frame is more than the
+		 * address of the app region */
+		if(g_state != ST_ERASED){
+			bl_respond(BL_NACK);
+			return;
+		}
+		if(g_bytes_recv + f->len > g_image_len){
+			bl_respond(BL_NACK);
+			return;
+		}
+		if(g_write_addr + f->len > APP_END){
+			bl_respond(BL_NACK);
+			return;
+		}
+
+		// Continuing the BL_ID_DATA branch
 		flash_unlock();
 		flash_status_t st = flash_program(g_write_addr, f->data, f->len);
 		flash_lock();
@@ -194,30 +260,22 @@ void bl_handle_frame(const can_frame_t *f){
  * +++++++++++++++++++++++++++
  */
 void bl_run(void){
-	/*1. First we check if a host wants to talk to us.
-	 * If it does then we stay and listen to the host that wants to update
-	 * and become the bootloader.
-	 * 2. If no host wants to talk , we check if the app is valid
-	 * using app_is_valid() and jump to the application using jump_to_application() */
+	/*1. We check if a host wants to talk. For that we create a knocking window.
+	 * If the host knocks the window , we service it.
+	 * 2. If no host wants to talk (quiet window), we check if the app is valid or not
+	 * using app_is_valid() and jump to the application using jump_to_application().
+	 * Otherwise , the bootloader. */
 
 	can_frame_t rx;
-	int stay = 0;
 
-	for(uint32_t i = 0; i<BOOT_WINDOW;i++){
-		if(can_receive(&rx) == 0){
-			bl_handle_frame(&rx);
-			stay = 1;
-			break;
-		}
+	if(boot_window(BOOT_WINDOW_MS, &rx)){
+		bl_handle_frame(&rx);
+	} else if (app_is_valid()){
+		jump_to_application();
 	}
 
-
-	if(!stay && app_is_valid())
-		jump_to_application();
-
-
 	while(1){
-		if(can_receive(&rx) == 0)
+		if (can_receive(&rx) == 0)
 			bl_handle_frame(&rx);
 	}
 }
