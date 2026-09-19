@@ -8,8 +8,8 @@ import can
 import zlib
 
 INTERFACE = "slcan"
-CHANNEL = "COM4"
-BITRATE = 125000
+CHANNEL = "COM4" # Set according to your device manager
+BITRATE = 125000 # I've chosen this as default , it can be increased though
 
 
 BL_ID_CMD = 0x100
@@ -46,6 +46,16 @@ def send_and_wait(bus, arb_id, payload, timeout=ACK_TIMEOUT):
     bus.send(msg)
     return wait_for_ack(bus,timeout)
 
+# I'm sending CONNECT over and over until the bootloader answers (catching the boot window)
+def connect_with_retry(bus , length, timeout=10.0):
+    payload = [BL_CMD_CONNECT] + list(struct.pack("<I", length))
+    print("Knocking for bootloader, reset the board now...", flush=True)
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if send_and_wait(bus, BL_ID_CMD, payload, timeout=0.2):
+            return True
+        return False
+
 
 def flash_firmware(bus, image):
 
@@ -55,9 +65,8 @@ def flash_firmware(bus, image):
     print(f"Image: {length} bytes ({length // 8} frames)")
 
     print("CONNECT....", end=" ", flush=True)
-    if not send_and_wait(bus, BL_ID_CMD,
-    [BL_CMD_CONNECT] + list(struct.pack("<I", length))):
-        return fail("no ACK to connect")
+    if not connect_with_retry(bus, length):
+        return fail("bootloader didn't respond : Reset not within boot window perhaps..")
     print("ACK")
 
 
