@@ -20,7 +20,7 @@ volatile uint32_t g_write_addr;
 volatile uint32_t g_image_len;
 volatile uint32_t g_bytes_recv;
 
-#define BOOT_WINDOW 20000000U
+#define BOOT_WINDOW 2000000U
 
 #define APP_DESC ((const volatile app_desc_t *)HEADER_BASE)
 
