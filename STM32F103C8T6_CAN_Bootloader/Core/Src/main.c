@@ -8,11 +8,8 @@
 int main(void){
 
 	can_init();
-	can_frame_t rx;
+	bl_run(); // boot window , either app or bootloader
 	while(1){
-		if(can_receive(&rx) == 0){
-			bl_handle_frame(&rx);
-		}
 	}
 }
 

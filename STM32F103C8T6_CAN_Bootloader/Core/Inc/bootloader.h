@@ -22,6 +22,7 @@
 #define BL_NACK 0x01
 
 void bl_handle_frame(const can_frame_t *f);
+void bl_run(void);
 
 
 

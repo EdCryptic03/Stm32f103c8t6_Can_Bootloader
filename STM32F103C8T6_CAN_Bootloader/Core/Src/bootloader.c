@@ -10,16 +10,28 @@
 #include "flash.h"
 #include "stm32f1xx.h"
 
+#define HEADER_BASE 0x08004000UL
 #define APP_BASE 0x08004400UL
 #define APP_END 0x08010000UL
+#define APP_MAGIC 0xB00710ADUL
+
 
 volatile uint32_t g_write_addr;
 volatile uint32_t g_image_len;
 volatile uint32_t g_bytes_recv;
 
+#define BOOT_WINDOW 20000000U
 
+#define APP_DESC ((const volatile app_desc_t *)HEADER_BASE)
 
 typedef void (*app_entry_t)(void);
+
+typedef struct{
+	uint32_t magic;
+	uint32_t length;
+	uint32_t crc;
+} app_desc_t;
+
 
 /*=====================================================
  * FUNCTION TO SEND ONE-BYTE ACK/NACK BACK TO THE HOST
@@ -57,11 +69,6 @@ static void jump_to_application(void){
 		app_entry();
 	}
 
-/*=================================================================
- * g_image_len = total image size
- * g_write_addr = start of the app
- * g_bytes_recv = set to zero because we didn't write anything yet
- * ================================================================ */
 
 
 /*=====================================================
@@ -83,6 +90,41 @@ static uint32_t crc32_compute(const uint8_t *data, uint32_t len){
 	return crc ^ 0xFFFFFFFFU;
 }
 
+/*=============================================
+ * BUILDING APP VALIDATION
+ * ===========================================*/
+
+static int app_is_valid(void){
+
+	if(APP_DESC->magic != APP_MAGIC)
+		return 0;
+
+	uint32_t len = APP_DESC->length;
+	if(len == 0 || len > (APP_END - APP_BASE))
+		return 0;
+
+
+	uint32_t sp = *(const uint32_t *)APP_BASE; // Initial Stack pointer
+	uint32_t reset = *(const uint32_t *)(APP_BASE + 4U);
+	if(sp < 0x20000000U || sp > 0x20005000U)
+	return 0;
+	if(reset < APP_BASE || reset >= APP_END)
+	return 0;
+	if((reset & 1U) == 0)
+	return 0;
+
+	if(crc32_compute((const uint8_t *)APP_BASE, len) != APP_DESC->crc)
+		return 0;
+
+
+	return 1;
+}
+
+/*=================================================================
+ * g_image_len = total image size
+ * g_write_addr = start of the app
+ * g_bytes_recv = set to zero because we didn't write anything yet
+ * ================================================================ */
 
 void bl_handle_frame(const can_frame_t *f){
 	if(f->id == BL_ID_CMD){
@@ -97,7 +139,7 @@ void bl_handle_frame(const can_frame_t *f){
 
 		case BL_CMD_ERASE:
 			flash_unlock();
-			if(flash_erase_region(APP_BASE, APP_END) == FLASH_OK){
+			if(flash_erase_region(HEADER_BASE, APP_END) == FLASH_OK){
 				bl_respond(BL_ACK);
 			} else {
 				bl_respond(BL_NACK);
@@ -109,6 +151,10 @@ void bl_handle_frame(const can_frame_t *f){
 			uint32_t host_crc = rd_u32(&f->data[1]);
 			uint32_t calc_crc = crc32_compute((const uint8_t *)APP_BASE, g_image_len);
 			if(g_bytes_recv == g_image_len && host_crc == calc_crc){
+				app_desc_t desc = {APP_MAGIC, g_image_len, calc_crc};
+				flash_unlock();
+				flash_program(HEADER_BASE, (const uint8_t *)&desc, sizeof(desc));
+				flash_lock();
 				bl_respond(BL_ACK);
 			} else {
 				bl_respond(BL_NACK);
@@ -116,8 +162,12 @@ void bl_handle_frame(const can_frame_t *f){
 			break;
 
 		case BL_CMD_GO:
-			bl_respond(BL_ACK);
-			jump_to_application();
+			if(app_is_valid()){ // Checks if app is valid first otherwise it refuses to jump
+				bl_respond(BL_ACK);
+				jump_to_application();
+			} else {
+				bl_respond(BL_NACK);
+			}
 			break;
 
 		default: // in case of unknown command
@@ -138,5 +188,39 @@ void bl_handle_frame(const can_frame_t *f){
 		}
 	}
 }
+
+/* ++++++++++++++++++++++++++
+ * Bootloader window Function
+ * +++++++++++++++++++++++++++
+ */
+void bl_run(void){
+	/*1. First we check if a host wants to talk to us.
+	 * If it does then we stay and listen to the host that wants to update
+	 * and become the bootloader.
+	 * 2. If no host wants to talk , we check if the app is valid
+	 * using app_is_valid() and jump to the application using jump_to_application() */
+
+	can_frame_t rx;
+	int stay = 0;
+
+	for(uint32_t i = 0; i<BOOT_WINDOW;i++){
+		if(can_receive(&rx) == 0){
+			bl_handle_frame(&rx);
+			stay = 1;
+			break;
+		}
+	}
+
+
+	if(!stay && app_is_valid())
+		jump_to_application();
+
+
+	while(1){
+		if(can_receive(&rx) == 0)
+			bl_handle_frame(&rx);
+	}
+}
+
 
 
