@@ -105,23 +105,18 @@ static void jump_to_application(void){
 
 
 /*=====================================================
- * Standard CRC-32 , Currently matching with Python's zlib.crc32.
+ * Standard CRC-32 , Working with the Standard CRC peripheral of ST32F1 seires
+ * Reference Manual RM0008 (CRC Calculation Unit)
  * ===================================================== */
 static uint32_t crc32_compute(const uint8_t *data, uint32_t len){
 
-	uint32_t crc = 0xFFFFFFFFU;
-	for(uint32_t i = 0;i < len; i++){
-		crc ^= data[i];
-		for(int b = 0;b < 8;b++){
-			if(crc & 1U){
-				crc = (crc >> 1) ^ 0xEDB88320U;
-			} else {
-				crc >>=1;
+		RCC->AHBENR |= RCC_AHBENR_CRCEN;
+		CRC->CR = CRC_CR_RESET;  //CRC_DR reset offset : 0xFFFFFFFF
+		for(uint32_t i=0;i<len;i += 4){
+			CRC->DR = *(const uint32_t *)(data + i);
 			}
+		return CRC->DR;
 		}
-	}
-	return crc ^ 0xFFFFFFFFU;
-}
 
 /*=============================================
  * BUILDING APP VALIDATION

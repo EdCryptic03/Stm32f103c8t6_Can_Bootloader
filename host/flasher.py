@@ -5,7 +5,6 @@ import sys
 import time 
 import struct 
 import can 
-import zlib
 
 INTERFACE = "slcan"
 CHANNEL = "COM4" # Set according to your device manager
@@ -26,6 +25,19 @@ BL_NACK = 0x01
 
 ACK_TIMEOUT = 1.0 
 ERASE_TIMEOUT = 5.0 
+
+
+def stm32_crc(data: bytes) -> int:
+
+    "Matching STM32F1 series hardware CRC unit (referring to RM0008 manual)"
+    if len(data) % 4:
+        data += b\"\xFF" * (4 - len(data) % 4)
+    crc = 0xFFFFFFFF
+    for i in range(0, len(data), 4):
+        crc ^= int.from_bytes(data[i:i+4], "little")
+        for _ in range(32):
+            crc = ((crc << 1) ^ 0x4C11DB7) & 0xFFFFFFFF if (crc & 0x80000000) else (crc << 1) & 0xFFFFFFFF
+        return crc
 
 def wait_for_ack(bus, timeout):
     deadline = time.time() + timeout
@@ -93,7 +105,7 @@ def flash_firmware(bus, image):
     print("done")
 
     print("END...", end=" ", flush=True)
-    crc = zlib.crc32(image) & 0xFFFFFFFF
+    crc = stm32_crc(image)
     if not send_and_wait(bus, BL_ID_CMD, [BL_CMD_END] + list(struct.pack("<I", crc))):
         return fail("END rejected : CRC mismatch or incomplete image")
     print(f"ACK (crc=0x{crc:08X})")
