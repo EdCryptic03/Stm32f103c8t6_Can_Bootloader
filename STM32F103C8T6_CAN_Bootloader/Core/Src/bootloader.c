@@ -11,7 +11,7 @@
 #include "stm32f1xx.h"
 
 #define CORE_CLOCK_HZ 8000000U
-#define BOOT_WINDOW_MS 1500U
+#define BOOT_WINDOW_MS 10000U
 
 #define HEADER_BASE 0x08004000UL
 #define APP_BASE 0x08004400UL
@@ -167,7 +167,7 @@ void bl_handle_frame(const can_frame_t *f){
 
 		case BL_CMD_CONNECT:{
 			uint32_t len = rd_u32(&f->data[1]);
-			if(len == 0 || len > (APP_BASE - APP_END)){
+			if(len == 0 || len > (APP_END - APP_BASE)){
 				bl_respond(BL_NACK);
 				break;
 			}
@@ -186,6 +186,7 @@ void bl_handle_frame(const can_frame_t *f){
 			}
 			flash_unlock();
 			if(flash_erase_region(HEADER_BASE, APP_END) == FLASH_OK){
+				g_state = ST_ERASED;
 				bl_respond(BL_ACK);
 			} else {
 				bl_respond(BL_NACK);

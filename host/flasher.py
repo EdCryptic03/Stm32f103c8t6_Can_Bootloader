@@ -52,9 +52,17 @@ def connect_with_retry(bus , length, timeout=10.0):
     print("Knocking for bootloader, reset the board now...", flush=True)
     deadline = time.time() + timeout
     while time.time() < deadline:
-        if send_and_wait(bus, BL_ID_CMD, payload, timeout=0.2):
+        try:
+            bus.send(can.Message(arbitration_id=BL_ID_CMD, data=payload, is_extended_id=False))
+        except can.CanError:
+            pass
+        msg = bus.recv(timeout=0.1)
+        if msg is not None and msg.arbitration_id == BL_ID_RESP and msg.data[0] == BL_ACK:
+            print("Connected")
             return True
-        return False
+        print(".", end="", flush=True)
+    print(" timed out")
+    return False
 
 
 def flash_firmware(bus, image):
