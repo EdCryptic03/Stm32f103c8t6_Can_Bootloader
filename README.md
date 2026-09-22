@@ -296,9 +296,11 @@ and `GO` refuses to jump into an invalid application.
 The protocol was verified on real hardware by probing the transceiver's TXD/RXD
 lines with a logic analyzer and decoding with its CAN protocol decoder.
 
-captures/la_ack_0x102.png
+<img width="1013" height="127" alt="la_ack_0x102" src="https://github.com/user-attachments/assets/9ec8c66d-a240-48b5-801e-ade35ada4f28" />
 
-captures/la_connect_0x100.png
+
+<img width="1581" height="132" alt="la_connect_0x100" src="https://github.com/user-attachments/assets/2ab59804-7c8b-4cb6-b956-3bd03d2bc366" />
+
 
 The captures show each decoded frame — the CONNECT command (`0x100`), the
 bootloader's ACK (`0x102`), and the CRC bytes travelling in the END frame —
