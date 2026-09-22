@@ -6,13 +6,12 @@ from _pytest import capture
 import can 
 import pytest
 
-from host.flasher import BL_CMD_CONNECT, BL_ID_RESP 
 
 
-INTERFACE = "slcan"
-CHANNEL = "COM4"
+INTERFACE = "gs_usb"
+CHANNEL = "0"
 BITRATE = 125000
-STFROG = r"C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe"
+STFROG = r"/Applications/STMicroelectronics/STM32Cube/STM32CubeProgrammer/STM32CubeProgrammer.app/Contents/Resources/bin/STM32_Programmer_CLI"
 
 
 BL_ID_CMD,BL_ID_DATA,BL_ID_RESP = 0x100,0x101,0x102
@@ -86,8 +85,8 @@ def reset_board():
     check=True, capture_output=True, timeout=20)
 
 
-@pytest.fixture(escape="session")
-def bust():
+@pytest.fixture(scope="session")
+def bus():
     b = can.Bus(interface=INTERFACE, channel=CHANNEL, bitrate=BITRATE)
     yield b 
     b.shutdown()

@@ -31,7 +31,7 @@ def stm32_crc(data: bytes) -> int:
 
     "Matching STM32F1 series hardware CRC unit (referring to RM0008 manual)"
     if len(data) % 4:
-        data += b\"\xFF" * (4 - len(data) % 4)
+        data += b"\xFF" * (4 - len(data) % 4)
     crc = 0xFFFFFFFF
     for i in range(0, len(data), 4):
         crc ^= int.from_bytes(data[i:i+4], "little")
