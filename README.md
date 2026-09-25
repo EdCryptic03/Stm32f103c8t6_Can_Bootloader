@@ -1,4 +1,4 @@
-<img width="487" height="604" alt="memory_map" src="https://github.com/user-attachments/assets/19935c3b-019b-47be-a00f-b26c76908f1a" />
+
 # STM32F103C8T6 CAN Bootloader
 
 I designed a custom CAN bus bootloader for the STM32F103C8T6 ("Blue Pill"),and wrote it in bare-metal — CMSIS and direct register access, no HAL — and I built it from scratch to understand every layer of how a firmware update actually works.
@@ -98,6 +98,7 @@ are **separate** — only CANH, CANL, and a common ground run between them.
 ## Flash memory layout
 
 64 KB of flash, split into three regions:
+<img width="487" height="604" alt="memory_map" src="https://github.com/user-attachments/assets/19935c3b-019b-47be-a00f-b26c76908f1a" />
 
 | Region | Address range | Size | Purpose |
 |--------|---------------|------|---------|
